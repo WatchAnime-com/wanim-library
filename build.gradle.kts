@@ -45,14 +45,27 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.1")
     implementation("jakarta.persistence:jakarta.persistence-api:3.2.0")
+
+
+
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.1")
+
     implementation("com.fasterxml.jackson.core:jackson-core:2.18.1")
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    implementation("org.apache.commons:commons-lang3:3.17.0")
+// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
+    implementation("org.slf4j:slf4j-api:2.0.16")
+
+// https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk18on
+    implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+// https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-kotlin
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 
 }
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict")
+        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xjvm-default=all")
     }
 }
 
@@ -76,7 +89,7 @@ publishing {
     repositories {
         maven {
             // Nexus Repository URL'sini doğru şekilde belirtiyoruz
-            url = uri("http://localhost:8232/repository/wanim-library/")
+            url = uri("http://192.168.1.25:8232/repository/wanim-library/")
 
             isAllowInsecureProtocol = true // Güvenli olmayan protokole izin verir
             // Kullanıcı adı ve şifreyi çevresel değişkenlerden alıyoruz
@@ -90,7 +103,7 @@ publishing {
 
 fun getLatestVersion(): String {
     val client = HttpClient.newHttpClient()
-    val url = "http://localhost:8232/repository/wanim-library/com/wanim_ms/wanim-library/maven-metadata.xml"
+    val url = "http://192.168.1.25:8232/repository/wanim-library/com/wanim_ms/wanim-library/maven-metadata.xml"
     val request = HttpRequest.newBuilder()
         .uri(URI.create(url))
         .header("Authorization", "Basic ${Base64.getEncoder().encodeToString("${System.getenv("REPO_USERNAME") as String}:${System.getenv("REPO_PASSWORD") as String}".toByteArray())}")
