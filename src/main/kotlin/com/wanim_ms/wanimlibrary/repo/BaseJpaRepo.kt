@@ -7,4 +7,4 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.repository.NoRepositoryBean
 
 @NoRepositoryBean
-interface BaseJpaRepo<T, ID> : JpaRepository<T, ID>, JpaSpecificationExecutor<T>
+interface BaseJpaRepo<T : BaseModel<ID> , ID> : JpaRepository<T, ID>, JpaSpecificationExecutor<T> , LJPAProjection<T,ID>

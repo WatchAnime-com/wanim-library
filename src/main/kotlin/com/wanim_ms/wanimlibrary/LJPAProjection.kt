@@ -25,7 +25,9 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return an optional containing the entity if found, or empty if not found.
      */
-    fun findOne(spec: BaseModelJpaSpec<T,ID>, clazz: Class<T>): Optional<T> {
+
+    @Deprecated("Use the newer findOne method instead", ReplaceWith("findOne(spec, clazz)"))
+    fun findOne(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, hal: String): Optional<T> {
         val query = projection(spec, clazz) ?: return Optional.empty()
         val result = manager().createQuery(query).resultList
         if (result.isEmpty()) return Optional.empty()
@@ -42,7 +44,8 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return a page of entities matching the specification.
      */
-    fun findAll(spec:  BaseModelJpaSpec<T,ID>, clazz: Class<T>, pagination: Boolean = true): Page<T> {
+    @Deprecated("Use the newer findAll method instead", ReplaceWith("findAll(spec, clazz)"))
+    fun findAll(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, pagination: Boolean = true): Page<T> {
         val projection = projection(spec, clazz) ?: return PageImpl(emptyList(), spec.ofPageable(), 0L)
         val query = manager().createQuery(projection)
 
@@ -63,13 +66,57 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
     }
 
     /**
+     * Finds a single entity matching the given specification.
+     *
+     * @param spec the specification to filter entities.
+     * @param clazz the class of the entity.
+     * @return an optional containing the entity if found, or empty if not found.
+     */
+    fun findOne(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): Optional<T> {
+        val query = createQuery(spec, clazz) ?: return Optional.empty()
+        val result = manager().createQuery(query).resultList
+        return result.firstOrNull()?.let { Optional.of(it) } ?: Optional.empty()
+    }
+
+    /**
+     * Finds all entities matching the given specification.
+     *
+     * @param spec the specification to filter entities.
+     * @param clazz the class of the entity.
+     * @return a page of entities matching the specification.
+     */
+    fun findAll(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): Page<T> {
+        val query = createQuery(spec, clazz) ?: return PageImpl(emptyList(), spec.ofPageable(), 0L)
+        val pageable = spec.ofSortedPageable()
+        val typedQuery = manager().createQuery(query).apply {
+            firstResult = pageable.pageNumber * pageable.pageSize
+            maxResults = pageable.pageSize
+        }
+        val countQuery = manager().createQuery(count(spec, clazz))
+        val count = countQuery.singleResult as Long
+
+        return PageImpl(typedQuery.resultList, pageable, count)
+    }
+
+    private fun createQuery(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<T>? {
+        val cb = manager().criteriaBuilder
+        val query = cb.createQuery(clazz)
+        val root = query.from(clazz)
+        val predicate = cb.and(
+            spec.ofSearch().toPredicate(root, query, cb),
+            spec.defaultPredicates(root, query, cb, BaseModel.SearchParams())
+        )
+        return query.where(predicate)
+    }
+
+    /**
      * Checks if an entity matching the given specification exists.
      *
      * @param spec the specification to filter entities.
      * @param clazz the class of the entity.
      * @return true if an entity exists, false otherwise.
      */
-    fun exists(spec:  BaseModelJpaSpec<T,ID>, clazz: Class<T>): Boolean {
+    fun exists(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): Boolean {
         val query = count(spec, clazz)
         return manager().createQuery(query).singleResult > 0
     }
@@ -81,7 +128,7 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return a criteria query for the projection.
      */
-    private fun projection(spec: BaseModelJpaSpec<T,ID>, clazz: Class<T>): CriteriaQuery<Tuple>? {
+    private fun projection(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Tuple>? {
         val builder = manager().criteriaBuilder
         val query = builder.createTupleQuery()
         val root = query.from(clazz)
@@ -115,7 +162,7 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return a criteria query for counting the entities.
      */
-    private fun count(spec:  BaseModelJpaSpec<T,ID>, clazz: Class<T>): CriteriaQuery<Long> {
+    private fun count(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Long> {
         val builder = manager().criteriaBuilder
         val query = builder.createQuery(Long::class.java)
         val root = query.from(clazz)
