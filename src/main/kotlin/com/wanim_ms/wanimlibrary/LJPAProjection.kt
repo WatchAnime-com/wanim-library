@@ -166,9 +166,12 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
         val builder = manager().criteriaBuilder
         val query = builder.createQuery(Long::class.java)
         val root = query.from(clazz)
-        val search = spec.ofSearch().toPredicate(root, query, builder)
+        val predicate = builder.and(
+            spec.ofSearch().toPredicate(root, query, builder),
+            spec.defaultPredicates(root, query, builder, BaseModel.SearchParams())
+        )
         query.select(builder.count(root))
-            .where(search)
+            .where(predicate)
         query.orderBy()
         return query
     }
