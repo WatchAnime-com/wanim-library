@@ -9,7 +9,7 @@ import kotlin.math.abs
 open class BaseModel<ID>(
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private var id:ID? = null,
 
     @Column(name = "sk", unique = true, updatable = false, nullable = false, length = 11)

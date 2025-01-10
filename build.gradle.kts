@@ -92,8 +92,8 @@ publishing {
             isAllowInsecureProtocol = true // Güvenli olmayan protokole izin verir
             // Kullanıcı adı ve şifreyi çevresel değişkenlerden alıyoruz
             credentials {
-                username = System.getenv("NEXUS_USERNAME") ?: "admin"
-                password = System.getenv("NEXUS_PASSWORD") ?: "QngrDP@A2ci5I^dzeL7aU\$I8g!Eg*694"
+                username = System.getenv("REPO_USERNAME") as String
+                password = System.getenv("REPO_PASSWORD") as String
             }
         }
     }

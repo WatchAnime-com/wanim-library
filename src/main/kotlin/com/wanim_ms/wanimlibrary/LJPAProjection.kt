@@ -18,52 +18,6 @@ import java.util.*
  */
 @JvmDefaultWithCompatibility
 interface LJPAProjection<T : BaseModel<ID>, ID> {
-    /**
-     * Finds a single entity matching the given specification.
-     *
-     * @param spec the specification to filter entities.
-     * @param clazz the class of the entity.
-     * @return an optional containing the entity if found, or empty if not found.
-     */
-
-    @Deprecated("Use the newer findOne method instead", ReplaceWith("findOne(spec, clazz)"))
-    fun findOne(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, hal: String): Optional<T> {
-        val query = projection(spec, clazz) ?: return Optional.empty()
-        val result = manager().createQuery(query).resultList
-        if (result.isEmpty()) return Optional.empty()
-        val tuple = result[0]
-        val entity = clazz.getDeclaredConstructor().newInstance()
-        setFields(entity, tuple)
-        return Optional.of(entity)
-    }
-
-    /**
-     * Finds all entities matching the given specification.
-     *
-     * @param spec the specification to filter entities.
-     * @param clazz the class of the entity.
-     * @return a page of entities matching the specification.
-     */
-    @Deprecated("Use the newer findAll method instead", ReplaceWith("findAll(spec, clazz)"))
-    fun findAll(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, pagination: Boolean = true): Page<T> {
-        val projection = projection(spec, clazz) ?: return PageImpl(emptyList(), spec.ofPageable(), 0L)
-        val query = manager().createQuery(projection)
-
-        if (pagination) {
-            val pageable = spec.ofSortedPageable()
-            query.firstResult = pageable.pageNumber * pageable.pageSize
-            query.maxResults = pageable.pageSize
-        }
-
-        val entity = clazz.getDeclaredConstructor().newInstance()
-        val result = query.resultList
-            .map { tuple ->
-                setFields(entity, tuple)
-                entity
-            }.distinctBy { it.getId() }
-        val count = manager().createQuery(count(spec, clazz)).singleResult
-        return PageImpl(result, spec.ofPageable(), count)
-    }
 
     /**
      * Finds a single entity matching the given specification.
@@ -72,9 +26,11 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return an optional containing the entity if found, or empty if not found.
      */
-    fun findOne(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): Optional<T> {
+    fun findOne(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, attributes: Array<String>? = null): Optional<T> {
         val query = createQuery(spec, clazz) ?: return Optional.empty()
-        val result = manager().createQuery(query).resultList
+        val result = manager().createQuery(query).apply {
+            attributes?.let { setHint("javax.persistence.loadgraph", createEntityGraph(clazz, *it)) }
+        }.resultList
         return result.firstOrNull()?.let { Optional.of(it) } ?: Optional.empty()
     }
 
@@ -85,17 +41,25 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return a page of entities matching the specification.
      */
-    fun findAll(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): Page<T> {
+    fun findAll(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>, attributes: Array<String>? = null): Page<T> {
         val query = createQuery(spec, clazz) ?: return PageImpl(emptyList(), spec.ofPageable(), 0L)
         val pageable = spec.ofSortedPageable()
         val typedQuery = manager().createQuery(query).apply {
             firstResult = pageable.pageNumber * pageable.pageSize
             maxResults = pageable.pageSize
+            attributes?.let { setHint("javax.persistence.loadgraph", createEntityGraph(clazz, *it)) }
         }
         val countQuery = manager().createQuery(count(spec, clazz))
         val count = countQuery.singleResult as Long
 
         return PageImpl(typedQuery.resultList, pageable, count)
+    }
+
+    private fun createEntityGraph(clazz: Class<T>, vararg attributes: String): EntityGraph<T> {
+        val entityManager = manager()
+        val entityGraph = entityManager.createEntityGraph(clazz)
+        entityGraph.addAttributeNodes(*attributes)
+        return entityGraph
     }
 
     private fun createQuery(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<T>? {
