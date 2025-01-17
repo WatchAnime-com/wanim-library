@@ -1,10 +1,8 @@
 package com.wanim_ms.wanimlibrary
 
+import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
@@ -29,20 +27,44 @@ class PageImplDeserializer<T> : JsonDeserializer<PageImpl<T>>() {
         return PageImpl(content, pageable, totalElements)
     }
 
-    fun <T> convertListToPage(list: List<T>, pageable: Pageable): Page<T> {
-        val pageSize = pageable.pageSize
-        val currentPage = pageable.pageNumber
-        val startItem = currentPage * pageSize
-        val listSubList: List<T>
+    fun <T> convertListToPage(
+        list: List<T>,
+        pageable: Pageable,
+        totalSize: Long // size parametresi daha açıklayıcı bir isim ile değiştirildi
+    ): Page<T> {
+        val startIndex = pageable.pageNumber * pageable.pageSize
 
-        if (list.size < startItem) {
-            listSubList = emptyList()
-        } else {
-            val toIndex = minOf(startItem + pageSize, list.size)
-            listSubList = list.subList(startItem, toIndex)
+        val pageContent = when {
+            list.size < startIndex -> emptyList()
+            else -> list.subList(
+                fromIndex = startIndex,
+                toIndex = minOf(startIndex + pageable.pageSize, list.size)
+            )
         }
-
-        return PageImpl(listSubList, pageable, list.size.toLong())
+        return PageImpl(pageContent, pageable, totalSize)
     }
+}
 
+
+class PageSerializer : JsonSerializer<Page<*>>() {
+    override fun serialize(value: Page<*>, gen: JsonGenerator, serializers: SerializerProvider) {
+        gen.writeStartObject()
+        gen.writeObjectField("content", value.content)
+        gen.writeNumberField("page", value.number)
+        gen.writeNumberField("size", value.size)
+        gen.writeNumberField("totalElements", value.totalElements)
+        gen.writeNumberField("totalPages", value.totalPages)
+        gen.writeEndObject()
+    }
+}
+
+class PageDeserializer<T>(private val contentClass: Class<T>) : JsonDeserializer<Page<T>>() {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Page<T> {
+        val node = p.codec.readTree<com.fasterxml.jackson.databind.JsonNode>(p)
+        val content = node["content"].traverse(p.codec).readValueAs(List::class.java)
+        val page = node["page"].asInt()
+        val size = node["size"].asInt()
+        val totalElements = node["totalElements"].asLong()
+        return PageImpl(content as List<T>, PageRequest.of(page, size), totalElements)
+    }
 }

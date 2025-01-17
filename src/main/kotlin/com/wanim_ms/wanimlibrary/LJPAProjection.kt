@@ -126,7 +126,7 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
      * @param clazz the class of the entity.
      * @return a criteria query for counting the entities.
      */
-    private fun count(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Long> {
+     fun count(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Long> {
         val builder = manager().criteriaBuilder
         val query = builder.createQuery(Long::class.java)
         val root = query.from(clazz)
