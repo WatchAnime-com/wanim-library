@@ -65,16 +65,13 @@ class SystemMetrics(
             """.trimIndent()
 
             try {
-                // Script dosyasını oluştur
                 val scriptPath = "/home/cri/getDiskInfo.sh"
                 File(scriptPath).apply {
                     writeText(scriptContent)
-                    // Linux'ta çalıştırma izni ver
                     try {
                         val perms = PosixFilePermissions.fromString("rwxr-xr-x")
                         Files.setPosixFilePermissions(Paths.get(scriptPath), perms)
                     } catch (e: UnsupportedOperationException) {
-                        // Windows sistemlerde çalışırsa bu kısmı atla
                         println("POSIX file permissions not supported on this system")
                     }
                 }
@@ -86,34 +83,119 @@ class SystemMetrics(
         }
 
         fun createFromCurrentData(): SystemMetrics {
+            // CPU Metrics
+            val cpuMetrics = getCPUMetrics()
+
+            // RAM Metrics
+            val ramMetrics = getRAMMetrics()
+
+            // Disk Metrics
+            val diskMetrics = getDiskMetrics()
+
             return SystemMetrics(
-                timestamp = LocalDateTime.parse(
-                    "2025-01-20 18:17:24",
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                ),
-                userLogin = "Cr-i",
-                cpuMetrics = CPUMetrics(
-                    totalCPUTime = 47524229,
-                    activeCPUTime = 4156699,
-                    cpuUsagePercent = 8.746483819863759
-                ),
-                ramMetrics = RAMMetrics(
-                    totalRAM = 15803,
-                    usedRAM = 13338,
-                    freeRAM = 2464
-                ),
-                diskMetrics = DiskMetrics(
-                    diskPath = "/dev/mapper/root",
-                    totalSpace = "468G",
-                    usedSpace = "50G",
-                    availableSpace = "394G",
-                    usagePercentage = "12%"
-                ),
+                timestamp = LocalDateTime.now(),
+                userLogin = System.getProperty("user.name"),
+                cpuMetrics = cpuMetrics,
+                ramMetrics = ramMetrics,
+                diskMetrics = diskMetrics,
                 serverInfo = ServerInfo(
                     serviceName = "VIDEO-NODE-SERVER",
                     instanceId = "archlinux:video-node-server:5353",
                     registrationStatus = 204
                 )
+            )
+        }
+
+        private fun getCPUMetrics(): CPUMetrics {
+            var totalCPUTime: Long = 0
+            var activeCPUTime: Long = 0
+
+            try {
+                BufferedReader(FileReader("/proc/stat")).use { reader ->
+                    val line = reader.readLine()
+                    if (line.startsWith("cpu")) {
+                        val values = line.split("\\s+".toRegex())
+                        val userTime = values[1].toLong()
+                        val niceTime = values[2].toLong()
+                        val systemTime = values[3].toLong()
+                        val idleTime = values[4].toLong()
+
+                        totalCPUTime = userTime + niceTime + systemTime + idleTime
+                        activeCPUTime = totalCPUTime - idleTime
+                    }
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+
+            return CPUMetrics(
+                totalCPUTime = totalCPUTime,
+                activeCPUTime = activeCPUTime,
+                cpuUsagePercent = (activeCPUTime * 100.0) / totalCPUTime
+            )
+        }
+
+        private fun getRAMMetrics(): RAMMetrics {
+            var totalMem: Long = 0
+            var freeMem: Long = 0
+
+            try {
+                BufferedReader(FileReader("/proc/meminfo")).use { reader ->
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        when {
+                            line!!.startsWith("MemTotal:") -> totalMem = line!!.replace("\\D+".toRegex(), "").toLong()
+                            line!!.startsWith("MemAvailable:") -> freeMem = line!!.replace("\\D+".toRegex(), "").toLong()
+                        }
+                    }
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+
+            return RAMMetrics(
+                totalRAM = totalMem / 1024,
+                usedRAM = (totalMem - freeMem) / 1024,
+                freeRAM = freeMem / 1024
+            )
+        }
+
+        private fun getDiskMetrics(): DiskMetrics {
+            try {
+                // Docker içinde direkt "df" komutu çalıştırarak container'ın disk bilgilerini alıyoruz
+                val process = ProcessBuilder("df", "-h", "/").start()
+                process.waitFor()
+
+                BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+                    // Header satırını atlıyoruz
+                    reader.readLine()
+
+                    // Disk bilgilerini içeren satırı okuyoruz
+                    val line = reader.readLine()
+                    if (line != null) {
+                        val parts = line.trim().split("\\s+".toRegex())
+                        if (parts.size >= 6) {
+                            return DiskMetrics(
+                                diskPath = parts[0],          // Filesystem
+                                totalSpace = parts[1],        // Size
+                                usedSpace = parts[2],         // Used
+                                availableSpace = parts[3],    // Available
+                                usagePercentage = parts[4]    // Use%
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Hata durumunda varsayılan değerler
+            return DiskMetrics(
+                diskPath = "unknown",
+                totalSpace = "N/A",
+                usedSpace = "N/A",
+                availableSpace = "N/A",
+                usagePercentage = "N/A"
             )
         }
 
@@ -144,6 +226,11 @@ class SystemMetrics(
                 append("Instance ID: ${status.serverInfo.instanceId}\n")
                 append("Registration Status: ${status.serverInfo.registrationStatus}")
             }
+        }
+
+        fun getSystemStatus(): String {
+            val metrics = createFromCurrentData()
+            return formatSystemStatus(metrics)
         }
     }
 }

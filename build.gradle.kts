@@ -55,6 +55,9 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.6")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.6")
+    // https://mvnrepository.com/artifact/com.bucket4j/bucket4j-core
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
+
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.1")
     implementation("com.fasterxml.jackson.core:jackson-core:2.18.1")

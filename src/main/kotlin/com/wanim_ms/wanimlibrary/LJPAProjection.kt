@@ -66,11 +66,37 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
         val cb = manager().criteriaBuilder
         val query = cb.createQuery(clazz)
         val root = query.from(clazz)
+
+        // Ana predicate oluşturma
         val predicate = cb.and(
             spec.ofSearch().toPredicate(root, query, cb),
-            spec.defaultPredicates(root, query, cb, BaseModel.SearchParams())
+            spec.defaultPredicates(root, query, cb, BaseModel.SearchParams().apply {
+                sortBy = spec.base.sortBy
+                sortOrder = spec.base.sortOrder
+            })
         )
+
         return query.where(predicate)
+    }
+
+    /**
+     * Creates a count query based on the given specification and entity class.
+     *
+     * @param spec the specification to filter entities.
+     * @param clazz the class of the entity.
+     * @return a criteria query for counting the entities.
+     */
+    private fun count(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Long> {
+        val builder = manager().criteriaBuilder
+        val query = builder.createQuery(Long::class.java)
+        val root = query.from(clazz)
+        val predicate = builder.and(
+            spec.ofSearch().toPredicate(root, query, builder),
+            spec.defaultPredicates(root, query, builder, BaseModel.SearchParams())
+        )
+        query.select(builder.count(root))
+            .where(predicate)
+        return query
     }
 
     /**
@@ -119,26 +145,7 @@ interface LJPAProjection<T : BaseModel<ID>, ID> {
         return query
     }
 
-    /**
-     * Creates a count query based on the given specification and entity class.
-     *
-     * @param spec the specification to filter entities.
-     * @param clazz the class of the entity.
-     * @return a criteria query for counting the entities.
-     */
-     fun count(spec: BaseModelJpaSpec<T, ID>, clazz: Class<T>): CriteriaQuery<Long> {
-        val builder = manager().criteriaBuilder
-        val query = builder.createQuery(Long::class.java)
-        val root = query.from(clazz)
-        val predicate = builder.and(
-            spec.ofSearch().toPredicate(root, query, builder),
-            spec.defaultPredicates(root, query, builder, BaseModel.SearchParams())
-        )
-        query.select(builder.count(root))
-            .where(predicate)
-        query.orderBy()
-        return query
-    }
+
 
     /**
      * Retrieves the entity manager from the application context.

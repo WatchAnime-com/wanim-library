@@ -70,4 +70,16 @@ class JwtService {
             .signWith(getSignKey())
             .compact()
     }
+
+    fun isJwtCorrectFormat(jwtToken: String?): Boolean {
+        return try {
+            Jwts.parser()
+                .setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(jwtToken)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
