@@ -92,7 +92,7 @@ Make sure your project has access to the above repository to resolve dependencie
 ## 👨‍💻 Author
 
 **L0rdL0ther**
-Creator of [SmartHome](https://github.com/L0rdL0ther/smart_home) ecosystem
+Creator of [SmartHome](https://github.com/L0rdL0ther/WSHome) ecosystem
 
 
 
