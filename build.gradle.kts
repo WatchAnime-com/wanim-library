@@ -18,6 +18,7 @@ plugins {
 }
 
 group = "com.wanim_ms"
+
 val sharedLibLatestVersion = getLatestVersion()
 val newVersion = incrementVersion(sharedLibLatestVersion)
 version = newVersion
@@ -55,7 +56,6 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.6")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.6")
-    // https://mvnrepository.com/artifact/com.bucket4j/bucket4j-core
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
 
@@ -92,8 +92,7 @@ publishing {
     }
     repositories {
         maven {
-            // Nexus Repository URL'sini doğru şekilde belirtiyoruz
-            url = uri("http://192.168.1.25:8232/repository/wanim-library/")
+            url = uri("https://repo.cr-i.tr/repository/wanim-library/")
 
             isAllowInsecureProtocol = true // Güvenli olmayan protokole izin verir
             // Kullanıcı adı ve şifreyi çevresel değişkenlerden alıyoruz
@@ -101,16 +100,16 @@ publishing {
                 username = System.getenv("REPO_USERNAME") as String
                 password = System.getenv("REPO_PASSWORD") as String
             }
+
         }
     }
 }
 
 fun getLatestVersion(): String {
     val client = HttpClient.newHttpClient()
-    val url = "http://192.168.1.25:8232/repository/wanim-library/com/wanim_ms/wanim-library/maven-metadata.xml"
+    val url = "https://repo.cr-i.tr/repository/wanim-library/com/wanim_ms/wanim-library/maven-metadata.xml"
     val request = HttpRequest.newBuilder()
         .uri(URI.create(url))
-        .header("Authorization", "Basic ${Base64.getEncoder().encodeToString("${System.getenv("REPO_USERNAME") as String}:${System.getenv("REPO_PASSWORD") as String}".toByteArray())}")
         .build()
     val response = client.send(request, HttpResponse.BodyHandlers.ofString())
     if (response.statusCode() == 200) {
