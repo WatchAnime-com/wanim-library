@@ -1,11 +1,15 @@
-package com.wanim_ms.wanimlibrary.model
+package com.wanim_ms.wanimlibrary.core.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.wanim_ms.wanimlibrary.spec.PaginationSpec
+import com.wanim_ms.wanimlibrary.core.spec.PaginationSpec
 
-
+/**
+ * Base parameter model for search/filter operations.
+ * Extends PaginationSpec and adds search, sorting capabilities.
+ */
 @JsonIgnoreProperties(value = ["page", "size", "sortBy", "sortOrder", "search"])
 open class ParameterModel : PaginationSpec() {
+    
     @Transient
     var search: String? = null
         get() = field?.trim()?.lowercase()
@@ -19,8 +23,7 @@ open class ParameterModel : PaginationSpec() {
 }
 
 /**
- * This enum represents the order to sort in.
- * It provides labels, values, colors, and icons for each order.
+ * Sort order enumeration for query sorting.
  */
 enum class SortOrder {
     ASC {
@@ -31,8 +34,10 @@ enum class SortOrder {
     };
 
     abstract val label: String
+    
     open val value: String
         get() = name.uppercase()
+    
     open val color: String? = null
     open val icon: String? = null
 }
